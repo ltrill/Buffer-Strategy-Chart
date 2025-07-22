@@ -1,0 +1,146 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buffer Strategy Interactive Chart</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+    <style>
+        .container {
+            display: flex;
+            align-items: flex-start;
+        }
+        .slider-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-right: 5px;
+            margin-top: 0px;
+            height: 225px;
+            justify-content: center;
+        }
+        input[type=range] {
+            writing-mode: bt-lr;
+            -webkit-appearance: slider-vertical;
+            height: 100%;
+            width: 60px;
+        }
+        .slider-label {
+            margin-top: 10px;
+            text-align: center;
+        }
+        .chart-wrapper {
+            width: 450px;
+            height: 225px;
+        }
+        canvas {
+            width: 450px !important;
+            height: 225px !important;
+        }
+    </style>
+</head>
+<body>
+    <h1>S&P 500 vs. Buffer Strategy Return</h1>
+    <div class="container">
+        <div class="slider-container">
+            <input type="range" id="spSlider" min="-30" max="30" value="0">
+            <div class="slider-label">
+                S&P 500 Return<br><span id="spValue">0</span>%
+            </div>
+        </div>
+        <div class="chart-wrapper">
+            <canvas id="myChart"></canvas>
+        </div>
+    </div>
+
+    <script>
+        let bufferMessage = '';
+        let capMessage = '';
+
+        const messagePlugin = {
+            id: 'messagePlugin',
+            afterDatasetsDraw(chart, args, options) {
+                const {ctx, chartArea} = chart;
+                ctx.save();
+                ctx.font = 'bold 12px Arial';
+                ctx.textAlign = 'center';
+
+                if (bufferMessage) {
+                    ctx.fillStyle = 'red';
+                    ctx.fillText(bufferMessage, (chartArea.left + chartArea.right) / 2, chartArea.top + 18);
+                }
+
+                if (capMessage) {
+                    ctx.fillStyle = 'blue';
+                    ctx.fillText(capMessage, (chartArea.left + chartArea.right) / 2, chartArea.bottom - 10);
+                }
+
+                ctx.restore();
+            }
+        };
+
+        const ctx = document.getElementById('myChart').getContext('2d');
+        const myChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['S&P 500', 'Buffer Strategy'],
+                datasets: [{
+                    label: 'Return (%)',
+                    data: [0, 0],
+                    backgroundColor: ['rgba(75, 192, 192, 0.2)', 'rgba(153, 102, 255, 0.2)'],
+                    borderColor: ['rgba(75, 192, 192, 1)', 'rgba(153, 102, 255, 1)'],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: false,
+                plugins: {
+                    messagePlugin: {},
+                    datalabels: {
+                        anchor: 'end',
+                        align: 'start',
+                        formatter: function(value) {
+                            return value.toFixed(1) + '%';
+                        },
+                        font: {
+                            weight: 'bold'
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        suggestedMin: -30,
+                        suggestedMax: 30
+                    }
+                }
+            },
+            plugins: [messagePlugin, ChartDataLabels]
+        });
+
+        document.getElementById('spSlider').addEventListener('input', function() {
+            const spReturn = parseFloat(this.value);
+            document.getElementById('spValue').innerText = spReturn;
+
+            let bufferReturn = 0;
+            bufferMessage = '';
+            capMessage = '';
+
+            if (spReturn >= 0) {
+                bufferReturn = Math.min(spReturn, 10);
+                if (spReturn > 10) {
+                    capMessage = 'The buffer strategy return is capped at 10%';
+                }
+            } else {
+                bufferReturn = spReturn < -10 ? spReturn + 10 : 0;
+                bufferMessage = 'The buffer strategy protects against the first 10% of losses.';
+            }
+
+            myChart.data.datasets[0].data = [spReturn, bufferReturn];
+            myChart.update();
+        });
+    </script>
+</body>
+</html>
